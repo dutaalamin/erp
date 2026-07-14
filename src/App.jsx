@@ -10,7 +10,8 @@ import {
   Activity,
   Plus,
   Search,
-  Filter
+  Filter,
+  Save
 } from 'lucide-react';
 
 const mockSalesData = [
@@ -20,6 +21,20 @@ const mockSalesData = [
   { id: 'SO-1032', customer: 'Wayne Enterprises', amount: '$2,100.00', status: 'Cancelled', date: '2026-07-16' },
   { id: 'SO-1033', customer: 'Cyberdyne Systems', amount: '$15,000.00', status: 'Pending', date: '2026-07-17' },
   { id: 'SO-1034', customer: 'Oscorp', amount: '$3,450.00', status: 'Completed', date: '2026-07-17' },
+];
+
+const mockCustomers = [
+  { id: 'CUST-001', name: 'Acme Corp', email: 'contact@acme.com', phone: '+1 555-0100', status: 'Active' },
+  { id: 'CUST-002', name: 'Global Tech', email: 'info@globaltech.io', phone: '+1 555-0101', status: 'Active' },
+  { id: 'CUST-003', name: 'Stark Industries', email: 'hello@stark.com', phone: '+1 555-0102', status: 'Inactive' },
+  { id: 'CUST-004', name: 'Wayne Enterprises', email: 'bruce@wayne.com', phone: '+1 555-0103', status: 'Active' },
+];
+
+const mockProducts = [
+  { id: 'PRD-001', name: 'Laptop Pro X', category: 'Electronics', price: '$1,299.00', stock: 45 },
+  { id: 'PRD-002', name: 'Wireless Mouse', category: 'Accessories', price: '$49.99', stock: 120 },
+  { id: 'PRD-003', name: 'Mechanical Keyboard', category: 'Accessories', price: '$159.00', stock: 32 },
+  { id: 'PRD-004', name: '4K Monitor', category: 'Electronics', price: '$399.00', stock: 18 },
 ];
 
 function App() {
@@ -51,7 +66,10 @@ function App() {
             <li 
               key={item.name} 
               className={activeMenu === item.name ? 'active' : ''}
-              onClick={() => setActiveMenu(item.name)}
+              onClick={() => {
+                setActiveMenu(item.name);
+                setSearchQuery('');
+              }}
             >
               {item.icon}
               <span>{item.name}</span>
@@ -117,7 +135,7 @@ function App() {
                 <tbody>
                   {mockSalesData.slice(0,4).map((order) => (
                     <tr key={order.id}>
-                      <td>{order.id}</td>
+                      <td style={{fontWeight: 500, color: '#3b82f6'}}>{order.id}</td>
                       <td>{order.customer}</td>
                       <td>{order.date}</td>
                       <td>{order.amount}</td>
@@ -194,12 +212,132 @@ function App() {
           </div>
         )}
 
-        {activeMenu !== 'Dashboard' && activeMenu !== 'Sales' && (
-          <div className="data-table-container" style={{textAlign: 'center', padding: '50px'}}>
-            <h2>{activeMenu} Module</h2>
-            <p style={{color: '#6b7280', marginTop: '10px'}}>
-              This module is currently being migrated from Laravel Filament to React.
-            </p>
+        {activeMenu === 'Customers' && (
+          <div className="data-table-container">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
+                <input type="text" placeholder="Search customers..." style={{ padding: '8px 12px 8px 35px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }} />
+              </div>
+              <button style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontWeight: 500 }}>
+                <Plus size={18} /> Add Customer
+              </button>
+            </div>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Customer ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mockCustomers.map((cust) => (
+                  <tr key={cust.id}>
+                    <td style={{fontWeight: 500, color: '#3b82f6'}}>{cust.id}</td>
+                    <td>{cust.name}</td>
+                    <td>{cust.email}</td>
+                    <td>{cust.phone}</td>
+                    <td>
+                      <span className={`status-badge status-${cust.status.toLowerCase() === 'active' ? 'completed' : 'cancelled'}`}>
+                        {cust.status}
+                      </span>
+                    </td>
+                    <td>
+                      <button style={{background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer'}}>Edit</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activeMenu === 'Products' && (
+          <div className="data-table-container">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
+                <input type="text" placeholder="Search products..." style={{ padding: '8px 12px 8px 35px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }} />
+              </div>
+              <button style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontWeight: 500 }}>
+                <Plus size={18} /> Add Product
+              </button>
+            </div>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Product ID</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Price</th>
+                  <th>Stock</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mockProducts.map((prod) => (
+                  <tr key={prod.id}>
+                    <td style={{fontWeight: 500, color: '#3b82f6'}}>{prod.id}</td>
+                    <td>{prod.name}</td>
+                    <td>{prod.category}</td>
+                    <td>{prod.price}</td>
+                    <td>
+                      <span className={`status-badge status-${prod.stock > 20 ? 'completed' : 'pending'}`}>
+                        {prod.stock} in stock
+                      </span>
+                    </td>
+                    <td>
+                      <button style={{background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer'}}>Edit</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activeMenu === 'Settings' && (
+          <div className="data-table-container" style={{maxWidth: '800px'}}>
+            <h2 style={{marginBottom: '20px', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px'}}>General Settings</h2>
+            
+            <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+              <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                <label style={{fontWeight: 500, color: '#374151', fontSize: '14px'}}>Company Name</label>
+                <input type="text" defaultValue="My ERP Portfolio" style={{padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none'}} />
+              </div>
+              
+              <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                <label style={{fontWeight: 500, color: '#374151', fontSize: '14px'}}>Support Email</label>
+                <input type="email" defaultValue="admin@portfolio.com" style={{padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none'}} />
+              </div>
+
+              <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                <label style={{fontWeight: 500, color: '#374151', fontSize: '14px'}}>Timezone</label>
+                <select style={{padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', backgroundColor: 'white'}}>
+                  <option>Asia/Jakarta (GMT+7)</option>
+                  <option>UTC (GMT+0)</option>
+                  <option>America/New_York (GMT-5)</option>
+                </select>
+              </div>
+
+              <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                <label style={{fontWeight: 500, color: '#374151', fontSize: '14px'}}>Theme Preference</label>
+                <div style={{display: 'flex', gap: '15px'}}>
+                  <label style={{display: 'flex', alignItems: 'center', gap: '5px', fontSize: '14px'}}><input type="radio" name="theme" defaultChecked /> Light Theme</label>
+                  <label style={{display: 'flex', alignItems: 'center', gap: '5px', fontSize: '14px'}}><input type="radio" name="theme" /> Dark Theme</label>
+                </div>
+              </div>
+
+              <div style={{marginTop: '10px'}}>
+                <button style={{ padding: '10px 20px', borderRadius: '6px', border: 'none', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}>
+                  <Save size={18} /> Save Settings
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>
