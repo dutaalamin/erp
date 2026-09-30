@@ -1,0 +1,280 @@
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Filament\Resources\SalesOrderResource\Pages;
+use App\Models\SalesOrder;
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
+
+class SalesOrderResource extends Resource
+{
+    protected static ?string $model = SalesOrder::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
+
+    protected static ?string $navigationGroup = 'Sales';
+
+    protected static ?int $navigationSort = 2;
+
+    public static function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Forms\Components\Section::make('Order Info')
+                    ->schema([
+                        Forms\Components\Select::make('company_id')
+                            ->relationship('company', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+
+                        Forms\Components\Select::make('branch_id')
+                            ->relationship('branch', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+
+                        Forms\Components\Select::make('customer_id')
+                            ->relationship('customer', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+
+                        Forms\Components\Select::make('quotation_id')
+                            ->relationship('quotation', 'quotation_number')
+                            ->searchable()
+                            ->preload()
+                            ->nullable(),
+
+                        Forms\Components\TextInput::make('so_number')
+                            ->required()
+                            ->unique(ignoreRecord: true)
+                            ->maxLength(255),
+
+                        Forms\Components\DatePicker::make('order_date')
+                            ->required()
+                            ->default(now()),
+
+                        Forms\Components\DatePicker::make('expected_delivery_date')
+                            ->nullable(),
+
+                        Forms\Components\TextInput::make('payment_term_days')
+                            ->numeric()
+                            ->default(30),
+
+                        Forms\Components\TextInput::make('currency')
+                            ->default('IDR')
+                            ->maxLength(10),
+
+                        Forms\Components\TextInput::make('exchange_rate')
+                            ->numeric()
+                            ->default(1),
+
+                        Forms\Components\Select::make('status')
+                            ->options([
+                                'draft' => 'Draft',
+                                'confirmed' => 'Confirmed',
+                                'in_progress' => 'In Progress',
+                                'partial_delivered' => 'Partial Delivered',
+                                'delivered' => 'Delivered',
+                                'cancelled' => 'Cancelled',
+                            ])
+                            ->default('draft')
+                            ->required(),
+
+                        Forms\Components\Textarea::make('notes')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
+
+                Forms\Components\Section::make('Items')
+                    ->schema([
+                        Forms\Components\Repeater::make('items')
+                            ->relationship()
+                            ->schema([
+                                Forms\Components\Select::make('product_id')
+                                    ->relationship('product', 'name')
+                                    ->searchable()
+                                    ->preload()
+                                    ->required(),
+
+                                Forms\Components\TextInput::make('description')
+                                    ->maxLength(255),
+
+                                Forms\Components\TextInput::make('quantity')
+                                    ->numeric()
+                                    ->required()
+                                    ->default(1)
+                                    ->reactive()
+                                    ->afterStateUpdated(fn (Forms\Set $set, Forms\Get $get) => self::calculateItemTotals($set, $get)),
+
+                                Forms\Components\Select::make('unit_of_measure_id')
+                                    ->relationship('unitOfMeasure', 'name')
+                                    ->searchable()
+                                    ->preload(),
+
+                                Forms\Components\TextInput::make('unit_price')
+                                    ->numeric()
+                                    ->prefix('Rp')
+                                    ->required()
+                                    ->reactive()
+                                    ->afterStateUpdated(fn (Forms\Set $set, Forms\Get $get) => self::calculateItemTotals($set, $get)),
+
+                                Forms\Components\TextInput::make('discount_percent')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->reactive()
+                                    ->afterStateUpdated(fn (Forms\Set $set, Forms\Get $get) => self::calculateItemTotals($set, $get)),
+
+                                Forms\Components\TextInput::make('tax_percent')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->reactive()
+                                    ->afterStateUpdated(fn (Forms\Set $set, Forms\Get $get) => self::calculateItemTotals($set, $get)),
+
+                                Forms\Components\TextInput::make('subtotal')
+                                    ->numeric()
+                                    ->prefix('Rp')
+                                    ->disabled()
+                                    ->dehydrated(),
+
+                                Forms\Components\TextInput::make('total')
+                                    ->numeric()
+                                    ->prefix('Rp')
+                                    ->disabled()
+                                    ->dehydrated(),
+                            ])
+                            ->columns(3)
+                            ->defaultItems(1)
+                            ->reorderable()
+                            ->collapsible(),
+                    ]),
+
+                Forms\Components\Section::make('Totals')
+                    ->schema([
+                        Forms\Components\TextInput::make('subtotal')
+                            ->numeric()
+                            ->prefix('Rp')
+                            ->disabled()
+                            ->dehydrated(),
+
+                        Forms\Components\TextInput::make('tax_amount')
+                            ->numeric()
+                            ->prefix('Rp')
+                            ->disabled()
+                            ->dehydrated(),
+
+                        Forms\Components\TextInput::make('discount_amount')
+                            ->numeric()
+                            ->prefix('Rp')
+                            ->disabled()
+                            ->dehydrated(),
+
+                        Forms\Components\TextInput::make('total_amount')
+                            ->numeric()
+                            ->prefix('Rp')
+                            ->disabled()
+                            ->dehydrated(),
+                    ])
+                    ->columns(4),
+            ]);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table
+            ->columns([
+                Tables\Columns\TextColumn::make('so_number')
+                    ->searchable()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('customer.name')
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('order_date')
+                    ->date()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('total_amount')
+                    ->numeric(thousandsSeparator: '.')
+                    ->prefix('Rp ')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'draft' => 'gray',
+                        'confirmed' => 'info',
+                        'in_progress' => 'warning',
+                        'partial_delivered' => 'warning',
+                        'delivered' => 'success',
+                        'cancelled' => 'gray',
+                        default => 'gray',
+                    }),
+
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('status')
+                    ->options([
+                        'draft' => 'Draft',
+                        'confirmed' => 'Confirmed',
+                        'in_progress' => 'In Progress',
+                        'partial_delivered' => 'Partial Delivered',
+                        'delivered' => 'Delivered',
+                        'cancelled' => 'Cancelled',
+                    ]),
+
+                Tables\Filters\SelectFilter::make('customer')
+                    ->relationship('customer', 'name')
+                    ->searchable()
+                    ->preload(),
+            ])
+            ->actions([
+                Tables\Actions\EditAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
+            ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListSalesOrders::route('/'),
+            'create' => Pages\CreateSalesOrder::route('/create'),
+            'edit' => Pages\EditSalesOrder::route('/{record}/edit'),
+        ];
+    }
+
+    protected static function calculateItemTotals(Forms\Set $set, Forms\Get $get): void
+    {
+        $quantity = (float) ($get('quantity') ?? 0);
+        $unitPrice = (float) ($get('unit_price') ?? 0);
+        $discountPercent = (float) ($get('discount_percent') ?? 0);
+        $taxPercent = (float) ($get('tax_percent') ?? 0);
+
+        $subtotal = $quantity * $unitPrice;
+        $discountAmount = $subtotal * ($discountPercent / 100);
+        $afterDiscount = $subtotal - $discountAmount;
+        $taxAmount = $afterDiscount * ($taxPercent / 100);
+        $total = $afterDiscount + $taxAmount;
+
+        $set('subtotal', round($subtotal, 2));
+        $set('total', round($total, 2));
+    }
+}
